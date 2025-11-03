@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 @dataclass(frozen=True)
 class Settings:
     project_root: Path
+    data_dir: Path
     raw_dir: Path
     processed_dir: Path
     index_dir: Path
@@ -20,12 +21,14 @@ class Settings:
     chunk_size_tokens: int = 500
     chunk_overlap_tokens: int = 50
     chroma_collection: str = "emails"
-    top_k: int = 6
+    top_k: int = 30  # Retrieve more chunks for diversity before deduplication
+    top_k_final: int = 6  # Final number after thread deduplication
 
 
 def get_settings() -> Settings:
     load_dotenv()
     root = Path(__file__).resolve().parent.parent
+    data_dir = root / "data"
     raw_dir = root / "data" / "raw"
     processed_dir = root / "data" / "processed"
     index_dir = root / "data" / "index" / "chroma"
@@ -37,6 +40,7 @@ def get_settings() -> Settings:
         raise RuntimeError("OPENAI_API_KEY is not set. Add it to .env or the environment.")
     return Settings(
         project_root=root,
+        data_dir=data_dir,
         raw_dir=raw_dir,
         processed_dir=processed_dir,
         index_dir=index_dir,

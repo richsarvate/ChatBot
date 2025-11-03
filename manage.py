@@ -16,6 +16,11 @@ def main() -> None:
         help="Drop the existing Chroma index before ingesting.",
     )
     ingest_parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume ingestion from last checkpoint (after API limit reached).",
+    )
+    ingest_parser.add_argument(
         "--limit",
         type=int,
         default=None,
@@ -25,7 +30,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "ingest":
-        stats = ingest_emails(rebuild=args.rebuild, limit=args.limit)
+        stats = ingest_emails(rebuild=args.rebuild, resume=args.resume, limit=args.limit)
         print(
             f"Processed {stats.processed_messages} emails and {stats.processed_chunks} chunks."
         )

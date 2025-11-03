@@ -13,6 +13,7 @@ from .config import Settings
 class IndexedChunk:
     chunk_id: str
     message_id: str
+    thread_id: str
     subject: str
     from_address: str
     to: List[str]
@@ -88,6 +89,7 @@ class EmailIndex:
                 IndexedChunk(
                     chunk_id=chunk_id,
                     message_id=metadata.get("message_id", "unknown"),
+                    thread_id=metadata.get("thread_id", metadata.get("message_id", "unknown")),
                     subject=metadata.get("subject", "(no subject)"),
                     from_address=metadata.get("from_address", "unknown"),
                     to=metadata.get("to", []),

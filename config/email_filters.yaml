@@ -1,6 +1,12 @@
 # Email Filtering Configuration
 # Controls which emails are skipped during ingestion to reduce noise and save embedding costs
 
+# CONVERSATION-ONLY MODE
+# If enabled, only ingest emails that are part of a multi-email thread (2+ emails with same normalized subject)
+# This filters out all single transactional emails while keeping actual conversations
+# Set to true to enable, false to disable
+conversations_only: true
+
 # Block specific sender addresses (exact match, case-insensitive)
 blocked_senders:
   # Squarespace ticket notifications

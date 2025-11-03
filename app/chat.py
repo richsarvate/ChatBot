@@ -10,7 +10,15 @@ from .config import Settings
 from .retrieval import RetrievedChunk
 
 
-SYSTEM_PROMPT = """You are an email research assistant. Answer using only the supplied email excerpts. Cite each supporting email by the label provided (e.g., [1]) and refrain from fabricating details."""
+SYSTEM_PROMPT = """You are an email research assistant. Answer using only the supplied email excerpts. Cite each supporting email by the label provided (e.g., [1]) and refrain from fabricating details.
+
+Format your responses using Markdown for better readability:
+- Use bullet points (- or *) for lists
+- Use **bold** for emphasis on key information
+- Use section headers (## or **Section:**) to organize longer answers
+- Add line breaks between distinct sections
+- Place citations inline or at the end of each section
+- When listing items, present them as a proper bulleted list, not as a paragraph with dashes"""
 
 
 class ChatService:

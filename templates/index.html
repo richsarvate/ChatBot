@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Email QA</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 2rem auto; max-width: 800px; color: #1f2933; }
     h1 { font-size: 1.8rem; margin-bottom: 1rem; }
@@ -15,12 +16,21 @@
     .citations { margin-top: 1rem; padding-left: 1.2rem; }
     .citations li { margin-bottom: 0.25rem; }
     .error { color: #b91c1c; margin-top: 0.75rem; }
+    /* Markdown styling */
+    #answer h2, #answer h3 { margin-top: 1rem; margin-bottom: 0.5rem; font-weight: 600; }
+    #answer h2 { font-size: 1.25rem; }
+    #answer h3 { font-size: 1.1rem; }
+    #answer ul, #answer ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+    #answer li { margin-bottom: 0.25rem; }
+    #answer p { margin: 0.5rem 0; line-height: 1.6; }
+    #answer strong { font-weight: 600; color: #0f172a; }
+    #answer code { background: #e2e8f0; padding: 0.125rem 0.25rem; border-radius: 3px; font-size: 0.9em; }
   </style>
 </head>
 <body>
   <h1>Email Q&A</h1>
   <form id="qa-form">
-    <textarea id="question" placeholder="Ask about your email history..."></textarea>
+    <textarea id="question" placeholder="Ask about your email history... (Enter to submit, Shift+Enter for new line)"></textarea>
     <button type="submit">Ask</button>
   </form>
   <div id="status" class="error"></div>
@@ -37,6 +47,14 @@
     const citationsList = document.getElementById('citations');
     const statusBox = document.getElementById('status');
     const submitButton = form.querySelector('button');
+
+    // Handle Enter key to submit (Shift+Enter for new line)
+    questionInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -61,7 +79,8 @@
           throw new Error(err.detail || 'Query failed');
         }
         const data = await response.json();
-        answerDiv.textContent = data.answer;
+        // Render markdown answer
+        answerDiv.innerHTML = marked.parse(data.answer);
         citationsList.innerHTML = '';
         if (data.citations && data.citations.length) {
           data.citations.forEach((item) => {

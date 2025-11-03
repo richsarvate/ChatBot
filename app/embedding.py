@@ -8,6 +8,11 @@ from openai import OpenAI, RateLimitError, APITimeoutError, APIConnectionError
 from .config import Settings
 
 
+class InsufficientFundsError(Exception):
+    """Raised when OpenAI API credits are exhausted after all retries."""
+    pass
+
+
 class Embedder:
     def __init__(self, settings: Settings) -> None:
         self._client = OpenAI(
@@ -53,7 +58,10 @@ class Embedder:
                     time.sleep(delay)
                 else:
                     print(f"Rate limit exceeded after {max_retries} attempts for {batch_label}")
-                    raise
+                    raise InsufficientFundsError(
+                        "OpenAI API credits exhausted. Add funds to your OpenAI account, "
+                        "then restart ingestion with: python manage.py ingest --resume"
+                    ) from e
             
             except (APITimeoutError, APIConnectionError) as e:
                 if attempt < max_retries - 1:

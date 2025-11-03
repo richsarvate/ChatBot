@@ -48,3 +48,26 @@
 - Keep encrypted backups of raw, parsed, and index data by running a nightly `rsync` to an external drive.
 - Maintain a regression suite of 20 representative questions in `tests/regression_cases.json` and review outputs quarterly.
 - Plan a future upgrade to Gmail API incremental sync implemented with the same `mailparser` pipeline.
+
+## Known Issues - Retrieval Quality
+
+### Problem: Duplicate Thread Chunks Dominating Results
+**Symptom:** When querying "What comedy venues have we worked with?", the system returns only Comedy Bar despite having emails about multiple venues (Citizen Public Market, Rabbit Box, DoStuff venues, etc.).
+
+**Root Cause:** The retrieval system (top_k=6) returns 5 chunks from the same email thread ("Re: TICKET LINK: The Setup / Rabbit Box - July 5th, 2025") plus 1 chunk from a different thread. This happens because:
+1. Long email threads get chunked into multiple pieces that all match the query similarly
+2. No thread deduplication is applied during retrieval
+3. The re-ranker treats each chunk independently, allowing thread dominance
+
+**Impact:** 
+- Answers are technically correct but incomplete ("only Comedy Bar is mentioned in the excerpts")
+- User sees 6 citations but 5 are from the same conversation
+- Reduces information diversity and answer quality
+
+**Potential Solutions:**
+1. **Thread Deduplication** - Increase top_k to 20-30, then deduplicate by `thread_id` to keep max 1-2 chunks per thread
+2. **MMR-style Diversification** - Penalize chunks from already-selected threads during re-ranking
+3. **Metadata Filtering** - Prefer chunks from different senders/dates/subjects
+4. **Semantic Deduplication** - Cluster similar chunks and take representatives
+
+**Priority:** High - directly impacts answer completeness for factual queries
