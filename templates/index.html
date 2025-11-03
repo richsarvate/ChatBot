@@ -1,105 +1,310 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Email QA</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem auto; max-width: 800px; color: #1f2933; }
-    h1 { font-size: 1.8rem; margin-bottom: 1rem; }
-    form { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; }
-    textarea { flex: 1; min-height: 120px; padding: 0.75rem; font-size: 1rem; border: 1px solid #cbd5e1; border-radius: 8px; }
-    button { padding: 0.75rem 1.5rem; background: #2563eb; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
-    button:disabled { background: #94a3b8; cursor: not-allowed; }
-    .response { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem; }
-    .citations { margin-top: 1rem; padding-left: 1.2rem; }
-    .citations li { margin-bottom: 0.25rem; }
-    .error { color: #b91c1c; margin-top: 0.75rem; }
-    /* Markdown styling */
-    #answer h2, #answer h3 { margin-top: 1rem; margin-bottom: 0.5rem; font-weight: 600; }
-    #answer h2 { font-size: 1.25rem; }
-    #answer h3 { font-size: 1.1rem; }
-    #answer ul, #answer ol { margin: 0.5rem 0; padding-left: 1.5rem; }
-    #answer li { margin-bottom: 0.25rem; }
-    #answer p { margin: 0.5rem 0; line-height: 1.6; }
-    #answer strong { font-weight: 600; color: #0f172a; }
-    #answer code { background: #e2e8f0; padding: 0.125rem 0.25rem; border-radius: 3px; font-size: 0.9em; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #f7f7f8;
+    }
+    
+    header {
+      padding: 1rem 2rem;
+      background: white;
+      border-bottom: 1px solid #e5e5e5;
+    }
+    
+    h1 {
+      font-size: 1.5rem;
+      color: #202123;
+    }
+    
+    #conversation {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    
+    .message {
+      display: flex;
+      gap: 1rem;
+      max-width: 800px;
+    }
+    
+    .message.user {
+      margin-left: auto;
+      flex-direction: row-reverse;
+    }
+    
+    .message.assistant {
+      margin-right: auto;
+    }
+    
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    
+    .message.user .avatar {
+      background: #5436da;
+      color: white;
+    }
+    
+    .message.assistant .avatar {
+      background: #19c37d;
+      color: white;
+    }
+    
+    .content {
+      background: white;
+      padding: 1rem 1.25rem;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      line-height: 1.6;
+      flex: 1;
+    }
+    
+    .message.user .content {
+      background: #f4f4f4;
+    }
+    
+    .content h2, .content h3 { margin-top: 0.75rem; margin-bottom: 0.5rem; font-size: 1.1rem; }
+    .content ul, .content ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+    .content li { margin-bottom: 0.25rem; }
+    .content p { margin: 0.5rem 0; }
+    .content strong { font-weight: 600; }
+    .content code { background: #f0f0f0; padding: 0.125rem 0.25rem; border-radius: 3px; font-size: 0.9em; }
+    
+    .citations {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e5e5e5;
+      font-size: 0.85rem;
+      color: #666;
+    }
+    
+    .citations ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 0.5rem;
+    }
+    
+    .citations li {
+      padding: 0.25rem 0;
+      margin: 0;
+    }
+    
+    #inputArea {
+      padding: 1rem 2rem 2rem;
+      background: white;
+      border-top: 1px solid #e5e5e5;
+    }
+    
+    .input-wrapper {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-end;
+    }
+    
+    #input {
+      flex: 1;
+      min-height: 52px;
+      max-height: 200px;
+      padding: 0.75rem 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: inherit;
+      resize: none;
+      overflow-y: auto;
+    }
+    
+    #input:focus {
+      outline: none;
+      border-color: #5436da;
+    }
+    
+    #sendBtn {
+      width: 52px;
+      height: 52px;
+      background: #5436da;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+    
+    #sendBtn:hover:not(:disabled) {
+      background: #4228c0;
+    }
+    
+    #sendBtn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .thinking {
+      opacity: 0.7;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
-  <h1>Email Q&A</h1>
-  <form id="qa-form">
-    <textarea id="question" placeholder="Ask about your email history... (Enter to submit, Shift+Enter for new line)"></textarea>
-    <button type="submit">Ask</button>
-  </form>
-  <div id="status" class="error"></div>
-  <section id="result" class="response" hidden>
-    <div id="answer"></div>
-    <h3>Citations</h3>
-    <ul id="citations" class="citations"></ul>
-  </section>
-  <script>
-    const form = document.getElementById('qa-form');
-    const questionInput = document.getElementById('question');
-    const answerDiv = document.getElementById('answer');
-    const resultSection = document.getElementById('result');
-    const citationsList = document.getElementById('citations');
-    const statusBox = document.getElementById('status');
-    const submitButton = form.querySelector('button');
+  <header>
+    <h1>Email Q&A</h1>
+  </header>
+  
+  <div id="conversation"></div>
+  
+  <div id="inputArea">
+    <div class="input-wrapper">
+      <textarea id="input" placeholder="Ask about your emails..." rows="1"></textarea>
+      <button id="sendBtn">↑</button>
+    </div>
+  </div>
 
-    // Handle Enter key to submit (Shift+Enter for new line)
-    questionInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        form.requestSubmit();
+  <script>
+    const conversation = document.getElementById('conversation');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('sendBtn');
+    
+    // Session ID
+    let sid = localStorage.getItem('email_qa_sid');
+    if (!sid) {
+      sid = Date.now().toString(36) + Math.random().toString(36).substr(2);
+      localStorage.setItem('email_qa_sid', sid);
+    }
+    
+    // Auto-resize textarea
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = input.scrollHeight + 'px';
+    });
+    
+    // Enter to send
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendBtn.click();
       }
     });
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const question = questionInput.value.trim();
-      if (!question) {
-        statusBox.textContent = 'Please enter a question.';
-        return;
+    
+    // Add message to conversation
+    function addMessage(role, content, citations = null) {
+      const msg = document.createElement('div');
+      msg.className = 'message ' + role;
+      
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.textContent = role === 'user' ? 'Y' : 'A';
+      
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'content';
+      
+      if (role === 'assistant') {
+        contentDiv.innerHTML = marked.parse(content);
+        
+        if (citations && citations.length) {
+          const citDiv = document.createElement('div');
+          citDiv.className = 'citations';
+          citDiv.innerHTML = '<strong>Sources:</strong>';
+          const ul = document.createElement('ul');
+          citations.forEach(c => {
+            const li = document.createElement('li');
+            li.textContent = c.label + ' • ' + c.date;
+            ul.appendChild(li);
+          });
+          citDiv.appendChild(ul);
+          contentDiv.appendChild(citDiv);
+        }
+      } else {
+        contentDiv.textContent = content;
       }
-      statusBox.textContent = '';
-      submitButton.disabled = true;
-      answerDiv.textContent = 'Thinking...';
-      resultSection.hidden = false;
-      citationsList.innerHTML = '';
+      
+      msg.appendChild(avatar);
+      msg.appendChild(contentDiv);
+      conversation.appendChild(msg);
+      
+      // Scroll to bottom
+      conversation.scrollTop = conversation.scrollHeight;
+      
+      return msg;
+    }
+    
+    // Send message
+    sendBtn.addEventListener('click', async () => {
+      const question = input.value.trim();
+      if (!question) return;
+      
+      // Add user message
+      addMessage('user', question);
+      
+      // Clear input
+      input.value = '';
+      input.style.height = 'auto';
+      
+      // Disable input
+      input.disabled = true;
+      sendBtn.disabled = true;
+      
+      // Add thinking indicator
+      const thinkingMsg = addMessage('assistant', 'Thinking...');
+      thinkingMsg.querySelector('.content').classList.add('thinking');
+      
       try {
-        const response = await fetch('/api/query', {
+        const res = await fetch('/api/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question })
+          body: JSON.stringify({ question, session_id: sid })
         });
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.detail || 'Query failed');
+        
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || 'Request failed');
         }
-        const data = await response.json();
-        // Render markdown answer
-        answerDiv.innerHTML = marked.parse(data.answer);
-        citationsList.innerHTML = '';
-        if (data.citations && data.citations.length) {
-          data.citations.forEach((item) => {
-            const li = document.createElement('li');
-            li.textContent = `${item.label} • ${item.date} • score ${item.score}`;
-            citationsList.appendChild(li);
-          });
-        } else {
-          const li = document.createElement('li');
-          li.textContent = 'No supporting emails found.';
-          citationsList.appendChild(li);
-        }
+        
+        const data = await res.json();
+        
+        // Remove thinking indicator
+        thinkingMsg.remove();
+        
+        // Add assistant response
+        addMessage('assistant', data.answer, data.citations);
+        
       } catch (error) {
-        statusBox.textContent = error.message;
-        resultSection.hidden = true;
+        thinkingMsg.querySelector('.content').innerHTML = 
+          '<span style="color: #d00;">Error: ' + error.message + '</span>';
+        thinkingMsg.querySelector('.content').classList.remove('thinking');
       } finally {
-        submitButton.disabled = false;
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
       }
     });
+    
+    // Focus input
+    input.focus();
   </script>
 </body>
 </html>

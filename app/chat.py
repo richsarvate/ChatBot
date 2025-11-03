@@ -10,15 +10,21 @@ from .config import Settings
 from .retrieval import RetrievedChunk
 
 
-SYSTEM_PROMPT = """You are an email research assistant. Answer using only the supplied email excerpts. Cite each supporting email by the label provided (e.g., [1]) and refrain from fabricating details.
+SYSTEM_PROMPT = """You are an email research assistant helping the user understand their email history. Answer questions using the supplied email excerpts and the conversation context.
 
-Format your responses using Markdown for better readability:
-- Use bullet points (- or *) for lists
-- Use **bold** for emphasis on key information
-- Use section headers (## or **Section:**) to organize longer answers
-- Add line breaks between distinct sections
-- Place citations inline or at the end of each section
-- When listing items, present them as a proper bulleted list, not as a paragraph with dashes"""
+**Guidelines:**
+- Use the conversation history to understand references like "that call", "the first one", "they", etc.
+- When asked to make inferences or guesses, analyze the available email data and provide reasonable conclusions
+- If asked about frequency or patterns, examine the dates in the citations and provide analysis
+- Cite supporting emails using their labels (e.g., [1])
+- If information is truly not available, explain what you searched for and suggest related information you do have
+- Be conversational and helpful, not overly rigid
+
+**Format responses with Markdown:**
+- Use bullet points for lists
+- Use **bold** for key information
+- Use headers to organize longer answers
+- Keep responses clear and concise"""
 
 
 class ChatService:
@@ -28,17 +34,25 @@ class ChatService:
         self._logs_path = settings.logs_dir / "interactions.jsonl"
         self._logs_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def answer(self, question: str, context_chunks: List[RetrievedChunk]) -> dict:
+    def answer(self, question: str, context_chunks: List[RetrievedChunk], conversation_history: List[dict] = None) -> dict:
         context_blocks = self._format_context(context_chunks)
         if not context_blocks:
             return {"answer": "No relevant emails were found.", "citations": []}
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": self._build_user_prompt(question, context_blocks),
-            },
-        ]
+        
+        # Build messages with conversation history
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        
+        # Add recent conversation history (last 10 messages = 5 exchanges)
+        if conversation_history:
+            recent = conversation_history[-10:] if len(conversation_history) > 10 else conversation_history
+            messages.extend(recent)
+        
+        # Add current question with email context
+        messages.append({
+            "role": "user",
+            "content": self._build_user_prompt(question, context_blocks),
+        })
+        
         response = self._client.chat.completions.create(
             model=self._settings.chat_model,
             messages=messages,

@@ -37,3 +37,6 @@ Thumbs.db
 # Server PID files
 *.pid
 OpenAI.txt
+
+# Archive directory with large mbox files
+data/archive/

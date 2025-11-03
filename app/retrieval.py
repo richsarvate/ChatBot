@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from openai import OpenAI
 from rapidfuzz import fuzz
@@ -24,18 +24,35 @@ class Retriever:
         self._index = EmailIndex(settings)
         self._openai_client = OpenAI(api_key=settings.openai_api_key)
 
-    def _expand_query(self, query: str) -> List[str]:
+    def _expand_query(self, query: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> List[str]:
         """
         Use GPT to expand the query with synonyms, abbreviations, and variations.
         This helps handle cases where semantic search misses specific terms like "PW" for "password".
+        Also uses conversation history to resolve references like "that", "they", etc.
         """
-        prompt = f"""Given this search query, generate 3-5 related search terms including:
+        # Build context from recent conversation
+        context = ""
+        if conversation_history and len(conversation_history) >= 2:
+            # Get last 2 exchanges (4 messages)
+            recent = conversation_history[-4:]
+            context = "\n\nRecent conversation context:\n"
+            for msg in recent:
+                role = "User" if msg["role"] == "user" else "Assistant"
+                context += f"{role}: {msg['content'][:200]}...\n"
+        
+        prompt = f"""Given this search query{' and conversation context' if context else ''}, generate 3-5 related search terms including:
 - Synonyms
 - Common abbreviations
 - Alternative phrasings
 - Related terms
+- Specific names, dates, or entities mentioned in context
 
-Query: "{query}"
+{context}
+
+Current query: "{query}"
+
+If the query contains vague references like "that conversation", "what did we talk about", "they", etc., 
+use the conversation context to identify the specific subject, person, or topic being referenced.
 
 Return ONLY a comma-separated list of search terms, nothing else.
 Example: "password, PW, pw:, credentials, login info"
@@ -63,9 +80,9 @@ Example: "password, PW, pw:, credentials, login info"
             print(f"Query expansion failed: {e}, using original query")
             return [query]
 
-    def search(self, query: str, *, where: Optional[dict] = None) -> List[RetrievedChunk]:
+    def search(self, query: str, *, where: Optional[dict] = None, conversation_history: Optional[List[Dict[str, str]]] = None) -> List[RetrievedChunk]:
         # Expand query to catch variations
-        query_expansions = self._expand_query(query)
+        query_expansions = self._expand_query(query, conversation_history=conversation_history)
         print(f"🔍 Query expansions: {query_expansions}")
         
         # Search with all query variations
