@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Email QA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem auto; max-width: 800px; color: #1f2933; }
+    h1 { font-size: 1.8rem; margin-bottom: 1rem; }
+    form { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; }
+    textarea { flex: 1; min-height: 120px; padding: 0.75rem; font-size: 1rem; border: 1px solid #cbd5e1; border-radius: 8px; }
+    button { padding: 0.75rem 1.5rem; background: #2563eb; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
+    .response { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem; }
+    .citations { margin-top: 1rem; padding-left: 1.2rem; }
+    .citations li { margin-bottom: 0.25rem; }
+    .error { color: #b91c1c; margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+  <h1>Email Q&A</h1>
+  <form id="qa-form">
+    <textarea id="question" placeholder="Ask about your email history..."></textarea>
+    <button type="submit">Ask</button>
+  </form>
+  <div id="status" class="error"></div>
+  <section id="result" class="response" hidden>
+    <div id="answer"></div>
+    <h3>Citations</h3>
+    <ul id="citations" class="citations"></ul>
+  </section>
+  <script>
+    const form = document.getElementById('qa-form');
+    const questionInput = document.getElementById('question');
+    const answerDiv = document.getElementById('answer');
+    const resultSection = document.getElementById('result');
+    const citationsList = document.getElementById('citations');
+    const statusBox = document.getElementById('status');
+    const submitButton = form.querySelector('button');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const question = questionInput.value.trim();
+      if (!question) {
+        statusBox.textContent = 'Please enter a question.';
+        return;
+      }
+      statusBox.textContent = '';
+      submitButton.disabled = true;
+      answerDiv.textContent = 'Thinking...';
+      resultSection.hidden = false;
+      citationsList.innerHTML = '';
+      try {
+        const response = await fetch('/api/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.detail || 'Query failed');
+        }
+        const data = await response.json();
+        answerDiv.textContent = data.answer;
+        citationsList.innerHTML = '';
+        if (data.citations && data.citations.length) {
+          data.citations.forEach((item) => {
+            const li = document.createElement('li');
+            li.textContent = `${item.label} • ${item.date} • score ${item.score}`;
+            citationsList.appendChild(li);
+          });
+        } else {
+          const li = document.createElement('li');
+          li.textContent = 'No supporting emails found.';
+          citationsList.appendChild(li);
+        }
+      } catch (error) {
+        statusBox.textContent = error.message;
+        resultSection.hidden = true;
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

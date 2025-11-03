@@ -1,0 +1,47 @@
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+
+@dataclass(frozen=True)
+class Settings:
+    project_root: Path
+    raw_dir: Path
+    processed_dir: Path
+    index_dir: Path
+    logs_dir: Path
+    config_dir: Path
+    regression_cases_path: Path
+    openai_api_key: str
+    embedding_model: str = "text-embedding-3-large"
+    chat_model: str = "gpt-4.1"
+    chunk_size_tokens: int = 500
+    chunk_overlap_tokens: int = 50
+    chroma_collection: str = "emails"
+    top_k: int = 6
+
+
+def get_settings() -> Settings:
+    load_dotenv()
+    root = Path(__file__).resolve().parent.parent
+    raw_dir = root / "data" / "raw"
+    processed_dir = root / "data" / "processed"
+    index_dir = root / "data" / "index" / "chroma"
+    logs_dir = root / "logs"
+    config_dir = root / "config"
+    regression_cases_path = root / "tests" / "regression_cases.json"
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not set. Add it to .env or the environment.")
+    return Settings(
+        project_root=root,
+        raw_dir=raw_dir,
+        processed_dir=processed_dir,
+        index_dir=index_dir,
+        logs_dir=logs_dir,
+        config_dir=config_dir,
+        regression_cases_path=regression_cases_path,
+        openai_api_key=api_key,
+    )

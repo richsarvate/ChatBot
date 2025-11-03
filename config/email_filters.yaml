@@ -1,0 +1,106 @@
+# Email Filtering Configuration
+# Controls which emails are skipped during ingestion to reduce noise and save embedding costs
+
+# Block specific sender addresses (exact match, case-insensitive)
+blocked_senders:
+  # Squarespace ticket notifications
+  - noreply@squarespace.com
+  - no-reply@squarespace.com
+  
+  # Payment processors
+  - venmo@venmo.com
+  - notifications@stripe.com
+  - invoiceus@feverup.com
+  - billingus@feverup.com
+  - payments-noreply@google.com
+  - messenger@messaging.squareup.com
+  
+  # Eventbrite automated notifications
+  - noreply@event.eventbrite.com
+  - marketing@notify.eventbrite.com
+  - contact@eventbrite.com
+  
+  # Guest list management (automated only)
+  - domoreguestlist@dostuffmedia.com
+  
+  # Other automated senders
+  - noreply@bucketlisters.com
+
+# Block sender addresses matching these regex patterns
+blocked_sender_patterns:
+  - '^noreply@'
+  - '^no-reply@'
+  - '^notifications@'
+  - '^support@'
+  - '^donotreply@'
+  - '^automated@'
+
+# Block all emails from these domains (use sparingly - blocks everything including real people)
+blocked_domains:
+  - venmo.com              # All Venmo notifications
+  - squarespace.info       # Squarespace marketing/notifications
+
+# Subject line keywords that indicate transactional/automated emails
+# Only used in combination with semi-trusted domains (not blocked entirely)
+transactional_subject_keywords:
+  # Order/purchase confirmations
+  - 'new order has arrived'
+  - 'order confirmation'
+  - 'order received'
+  - 'purchase confirmation'
+  - 'ticket purchased'
+  - 'tickets purchased'
+  - 'new reservation'
+  - 'list of reserved'
+  - 'allocation confirmation'
+  
+  # Payment notifications
+  - 'you paid'
+  - 'payment sent'
+  - 'payment received'
+  - 'payout for'
+  - 'payout is on the way'
+  - 'transfer complete'
+  - 'tipalti payment'
+  
+  # Receipts and confirmations
+  - 'receipt for your order'
+  - 'your receipt'
+  - 'invoice for'
+  - 'please confirm receipt'
+  - 'your invoice is available'
+
+# Domains where we apply subject-based filtering (not full block)
+# Real people may send from these domains, so we only filter automated messages
+semi_trusted_domains:
+  - squarespace.com        # Block automated orders, keep conversations
+  - stripe.com             # Block automated payouts, keep account emails
+  - eventbrite.com         # Block individual tickets, keep summaries
+  - paypal.com             # Block receipts, keep disputes/communications
+  - bucketlisters.com      # Block automated receipts, keep real conversations
+  - feverup.com            # Block reservations/payments, keep partner communications
+  - dostuffmedia.com       # Block guest list confirmations, keep real conversations (marissa is real)
+  - showslinger.com        # Block marketing emails, keep ticketing questions
+
+# Always keep emails from these senders even if they match block rules
+# Use for important contacts at otherwise noisy domains
+whitelisted_senders:
+  # Add specific people here as needed
+  # - important.person@bucketlisters.com
+  # - account-manager@stripe.com
+
+# Keep emails with these subject prefixes (conversation indicators)
+preserve_conversation_prefixes:
+  - 'Re:'
+  - 'RE:'
+  - 'Fwd:'
+  - 'FWD:'
+
+# Statistics tracking (updated during ingestion)
+# This section is for documentation - actual counts tracked in logs
+filtering_stats:
+  last_updated: null
+  total_filtered: 0
+  filtered_by_sender: 0
+  filtered_by_subject: 0
+  filtered_by_domain: 0

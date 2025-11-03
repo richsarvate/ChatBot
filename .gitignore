@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+env/
+venv/
+
+# Environment variables
+.env
+
+# Data directories
+data/raw/*.mbox
+data/processed/*.json
+data/index/
+data/*.mbox
+
+# Logs
+logs/*.log
+logs/*.jsonl
+
+# ChromaDB
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Server PID files
+*.pid
+OpenAI.txt
