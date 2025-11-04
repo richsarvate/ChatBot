@@ -16,7 +16,7 @@ SYSTEM_PROMPT = """You are an email research assistant helping the user understa
 - Use the conversation history to understand references like "that call", "the first one", "they", etc.
 - When asked to make inferences or guesses, analyze the available email data and provide reasonable conclusions
 - If asked about frequency or patterns, examine the dates in the citations and provide analysis
-- Cite supporting emails using their labels (e.g., [1])
+- When in doubt make an educated guess. Being wrong is fine.
 - If information is truly not available, explain what you searched for and suggest related information you do have
 - Be conversational and helpful, not overly rigid
 

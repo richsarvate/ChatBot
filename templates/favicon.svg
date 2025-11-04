@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#5436da;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#19c37d;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="url(#grad)"/>
+  
+  <!-- Envelope -->
+  <rect x="20" y="30" width="60" height="40" rx="4" fill="white" opacity="0.95"/>
+  
+  <!-- Envelope flap -->
+  <path d="M 20 30 L 50 55 L 80 30" stroke="white" stroke-width="2" fill="none" opacity="0.95"/>
+  <path d="M 20 30 L 50 55 L 80 30 Z" fill="url(#grad)" opacity="0.3"/>
+  
+  <!-- Search icon overlay (small magnifying glass) -->
+  <circle cx="65" cy="60" r="8" fill="white" stroke="url(#grad)" stroke-width="2"/>
+  <line x1="71" y1="66" x2="77" y2="72" stroke="url(#grad)" stroke-width="3" stroke-linecap="round"/>
+</svg>

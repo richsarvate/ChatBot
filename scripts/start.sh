@@ -35,14 +35,32 @@ if [ -f "$PIDFILE" ]; then
 fi
 
 echo "Starting Email QA server..."
-nohup "$PROJECT_ROOT/.venv/bin/uvicorn" app.server:app \
-    --host 0.0.0.0 \
-    --port 8000 \
-    > "$PROJECT_ROOT/logs/server.log" 2>&1 &
+
+# Check for SSL certificates
+CERT_FILE="$PROJECT_ROOT/certs/cert.pem"
+KEY_FILE="$PROJECT_ROOT/certs/key.pem"
+
+if [ -f "$CERT_FILE" ] && [ -f "$KEY_FILE" ]; then
+    echo "Starting with HTTPS (SSL enabled)..."
+    nohup "$PROJECT_ROOT/.venv/bin/uvicorn" app.server:app \
+        --host 0.0.0.0 \
+        --port 8000 \
+        --ssl-keyfile "$KEY_FILE" \
+        --ssl-certfile "$CERT_FILE" \
+        > "$PROJECT_ROOT/logs/server.log" 2>&1 &
+    PROTOCOL="https"
+else
+    echo "Starting with HTTP (no SSL certificates found)..."
+    nohup "$PROJECT_ROOT/.venv/bin/uvicorn" app.server:app \
+        --host 0.0.0.0 \
+        --port 8000 \
+        > "$PROJECT_ROOT/logs/server.log" 2>&1 &
+    PROTOCOL="http"
+fi
 
 PID=$!
 echo $PID > "$PIDFILE"
 
 echo "Server started (PID: $PID)"
 echo "Logs: $PROJECT_ROOT/logs/server.log"
-echo "Access at: http://0.0.0.0:8000"
+echo "Access at: $PROTOCOL://0.0.0.0:8000"

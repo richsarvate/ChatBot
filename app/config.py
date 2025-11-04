@@ -14,6 +14,7 @@ class Settings:
     index_dir: Path
     logs_dir: Path
     config_dir: Path
+    certs_dir: Path
     regression_cases_path: Path
     openai_api_key: str
     embedding_model: str = "text-embedding-3-large"
@@ -23,6 +24,8 @@ class Settings:
     chroma_collection: str = "emails"
     top_k: int = 100  # Retrieve many chunks to ensure keyword matches are included
     top_k_final: int = 10  # Final number after thread deduplication (increased from 6)
+    ssl_certfile: Path | None = None
+    ssl_keyfile: Path | None = None
     
     # Spam filtering
     spam_penalty: float = 0.3  # Score penalty for low-value automated emails
@@ -56,10 +59,16 @@ def get_settings() -> Settings:
     index_dir = root / "data" / "index" / "chroma"
     logs_dir = root / "logs"
     config_dir = root / "config"
+    certs_dir = root / "certs"
     regression_cases_path = root / "tests" / "regression_cases.json"
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set. Add it to .env or the environment.")
+    
+    # SSL configuration
+    ssl_certfile = certs_dir / "cert.pem"
+    ssl_keyfile = certs_dir / "key.pem"
+    
     return Settings(
         project_root=root,
         data_dir=data_dir,
@@ -68,6 +77,9 @@ def get_settings() -> Settings:
         index_dir=index_dir,
         logs_dir=logs_dir,
         config_dir=config_dir,
+        certs_dir=certs_dir,
         regression_cases_path=regression_cases_path,
         openai_api_key=api_key,
+        ssl_certfile=ssl_certfile if ssl_certfile.exists() else None,
+        ssl_keyfile=ssl_keyfile if ssl_keyfile.exists() else None,
     )

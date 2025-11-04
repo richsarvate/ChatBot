@@ -5,9 +5,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from .chat import ChatService
 from .config import Settings, get_settings
@@ -15,6 +18,30 @@ from .retrieval import RetrievedChunk, Retriever
 
 # In-memory conversation storage: {session_id: [messages]}
 conversation_store: Dict[str, List[Dict[str, str]]] = defaultdict(list)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses."""
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "connect-src 'self'; "
+            "font-src 'self'; "
+            "object-src 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'"
+        )
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        return response
 
 
 class QueryPayload(BaseModel):
@@ -33,11 +60,32 @@ def create_app() -> FastAPI:
     retriever = Retriever(settings)
     chat = ChatService(settings)
 
-    app = FastAPI(title="Email QA")
+    app = FastAPI(
+        title="Email QA",
+        docs_url=None,  # Disable docs in production for security
+        redoc_url=None,  # Disable redoc in production for security
+    )
+    
+    # Add security middleware
+    app.add_middleware(SecurityHeadersMiddleware)
+    
+    # Add CORS middleware with strict settings
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["https://localhost:8000", "https://127.0.0.1:8000"],
+        allow_credentials=True,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
 
     @app.get("/", response_class=HTMLResponse)
     async def root(request: Request) -> HTMLResponse:
         return templates.TemplateResponse("index.html", {"request": request})
+
+    @app.get("/favicon.svg")
+    async def favicon() -> FileResponse:
+        favicon_path = settings.project_root / "templates" / "favicon.svg"
+        return FileResponse(favicon_path, media_type="image/svg+xml")
 
     def get_retriever() -> Retriever:
         return retriever

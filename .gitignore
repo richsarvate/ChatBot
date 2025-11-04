@@ -40,3 +40,8 @@ OpenAI.txt
 
 # Archive directory with large mbox files
 data/archive/
+
+# SSL certificates and private keys
+certs/*.pem
+certs/*.key
+certs/*.crt
