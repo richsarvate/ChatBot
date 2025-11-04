@@ -22,7 +22,7 @@ class Settings:
     chunk_overlap_tokens: int = 50
     chroma_collection: str = "emails"
     top_k: int = 30  # Retrieve more chunks for diversity before deduplication
-    top_k_final: int = 6  # Final number after thread deduplication
+    top_k_final: int = 10  # Final number after thread deduplication (increased from 6)
 
 
 def get_settings() -> Settings:

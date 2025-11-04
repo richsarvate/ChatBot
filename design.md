@@ -71,3 +71,95 @@
 4. **Semantic Deduplication** - Cluster similar chunks and take representatives
 
 **Priority:** High - directly impacts answer completeness for factual queries
+
+---
+
+### Problem: Poor Ranking for Specific Queries (Dates, Names, Exact Phrases)
+**Symptom:** Queries with specific details fail to retrieve the correct emails:
+- "What's the password for the nudge portal?" → No results
+- "What's the password for the nudge ticketing dashboard?" → Correct result
+- "What did we discuss in the June 17, 2024 email with Janesh?" → Returns different emails
+- Follow-up questions like "what did we talk about?" after system mentions a specific email → Cannot find the referenced email
+
+**Root Cause:** Current retrieval pipeline relies heavily on semantic search (70% weight) with the following limitations:
+
+1. **Vocabulary Mismatch** - Embeddings don't bridge terminology gaps well:
+   - Email says "ticketing dashboard" but user searches "portal"
+   - Email says "Setup Dates" but user searches "show scheduling"
+   - No amount of query expansion (5→20 terms) helps if GPT doesn't generate the exact synonym
+
+2. **Fixed Scoring Weights** - Uses `(semantic * 0.7) + (keyword * 0.3)` for all queries:
+   - Conceptual queries ("what does our company do?") → Should favor semantic
+   - Specific queries ("June 17, 2024 email") → Should favor exact matches
+   - Current approach treats all queries identically
+
+3. **No Metadata Filtering** - Database stores date, sender, recipient, subject but doesn't use them:
+   - Query mentions "June 2024" → Could filter to that date range
+   - Query mentions "Janesh Rahlan" → Could filter by sender/recipient
+   - Query mentions "Setup" → Could filter by subject contains
+
+4. **Limited Chunks Returned** - Only 6 chunks (10 after recent increase) reach the LLM:
+   - With 200K emails, the right email might rank 7th → User never sees it
+   - Small chunk limit means ranking quality is critical
+   - No second chances if ranking fails
+
+5. **Semantic-Only Multi-Query** - Expands query to 5 variations, all searched semantically:
+   - Gets different semantic angles but all suffer same vocabulary gap
+   - No keyword/exact-match fallback strategy
+
+**Current Workarounds Implemented:**
+- Query expansion with conversation history (helps with follow-ups)
+- Increased chunks from 6→10 (more chances to surface right email)
+
+**Potential Solutions (Priority Order):**
+
+**Phase 1: Quick Wins (1-2 hours)**
+1. **Metadata Filtering** - Detect dates/names in query and filter database:
+   ```
+   Query: "June 2024 email with Janesh"
+   → Filter: date >= 2024-06-01 AND date < 2024-07-01 
+   → Filter: from/to contains "janesh" OR "rahlan"
+   → Then run semantic search on filtered subset
+   ```
+
+2. **Dynamic Scoring Weights** - Adapt based on query type:
+   ```python
+   if has_specific_date or has_person_name:
+       score = (semantic * 0.3) + (keyword * 0.4) + (metadata_match * 0.3)
+   else:
+       score = (semantic * 0.7) + (keyword * 0.3)
+   ```
+
+**Phase 2: Hybrid Search (4-6 hours)**
+3. **Add BM25 Keyword Search** - Run both semantic and keyword search, merge results:
+   - Semantic search: Finds conceptual matches ("password" ≈ "credentials")
+   - BM25 keyword: Finds exact word matches ("nudge" + "ticketing" + "dashboard")
+   - Handles vocabulary gaps that semantic search misses
+
+4. **Query Classification** - Route queries to appropriate search strategy:
+   ```
+   "what does our company do?" → CONCEPTUAL → Pure semantic
+   "June 17 email with Janesh" → SPECIFIC → Metadata + keyword heavy
+   "recent conversations" → TEMPORAL → Date-sorted semantic
+   ```
+
+**Phase 3: Advanced (8+ hours)**
+5. **Cross-Encoder Reranking** - After retrieving 30 candidates, rerank with deeper model:
+   - Embeddings are fast but approximate (separate query/doc vectors)
+   - Cross-encoder is slow but accurate (processes query + doc together)
+   - Adds 1-2 seconds but dramatically improves ranking
+
+6. **Multi-Stage Retrieval** - Industry standard approach:
+   - Stage 1: Fast, broad search (retrieve 100 candidates for recall)
+   - Stage 2: Hybrid scoring (narrow to 30 for precision)
+   - Stage 3: LLM reranking (final 10 for relevance)
+
+**Impact:** Critical - Current semantic-only approach is the main bottleneck for:
+- Specific date/name queries
+- Follow-up questions referencing prior context
+- Queries using different terminology than email content
+- Any query where ranking accuracy matters (which is most queries)
+
+**Priority:** High - More indexed data (200K emails) will amplify this problem without better ranking
+
+```

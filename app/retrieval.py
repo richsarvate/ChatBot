@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 from openai import OpenAI
 from rapidfuzz import fuzz
@@ -23,6 +24,35 @@ class Retriever:
         self._embedder = Embedder(settings)
         self._index = EmailIndex(settings)
         self._openai_client = OpenAI(api_key=settings.openai_api_key)
+
+    def _extract_keywords(self, query: str) -> Set[str]:
+        """
+        Extract important keywords from query for metadata matching.
+        Returns normalized keywords (lowercase, stripped).
+        """
+        # Remove common stop words
+        stop_words = {
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+            'of', 'with', 'by', 'from', 'about', 'as', 'is', 'was', 'are', 'were',
+            'what', 'when', 'where', 'who', 'how', 'did', 'do', 'does', 'tell', 'me',
+            'my', 'your', 'our', 'their', 'have', 'has', 'had', 'be', 'been'
+        }
+        
+        # Split and clean
+        words = re.findall(r'\b\w+\b', query.lower())
+        
+        # Keep meaningful words (3+ chars, not stop words)
+        keywords = {w for w in words if len(w) >= 3 and w not in stop_words}
+        
+        # Also extract potential dates (various formats)
+        dates = re.findall(r'\b\d{4}\b|\b\d{1,2}/\d{1,2}/\d{2,4}\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}', query.lower())
+        keywords.update(dates)
+        
+        # Extract years
+        years = re.findall(r'\b20\d{2}\b', query)
+        keywords.update(years)
+        
+        return keywords
 
     def _expand_query(self, query: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> List[str]:
         """
@@ -81,9 +111,19 @@ Example: "password, PW, pw:, credentials, login info"
             return [query]
 
     def search(self, query: str, *, where: Optional[dict] = None, conversation_history: Optional[List[Dict[str, str]]] = None) -> List[RetrievedChunk]:
+        # Extract keywords from query for metadata matching
+        query_keywords = self._extract_keywords(query)
+        
+        # Detect if query has specific entities (dates, years, or proper nouns with caps)
+        has_date = bool(re.search(r'\b\d{4}\b|\b\d{1,2}/\d{1,2}|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)', query.lower()))
+        has_proper_noun = bool(re.search(r'\b[A-Z][a-z]+\b', query))
+        is_specific_query = has_date or has_proper_noun
+        
         # Expand query to catch variations
         query_expansions = self._expand_query(query, conversation_history=conversation_history)
         print(f"🔍 Query expansions: {query_expansions}")
+        print(f"🔑 Extracted keywords: {query_keywords}")
+        print(f"📍 Query type: {'SPECIFIC' if is_specific_query else 'CONCEPTUAL'}")
         
         # Search with all query variations
         all_chunks = {}  # Use dict to deduplicate by chunk ID
@@ -108,9 +148,47 @@ Example: "password, PW, pw:, credentials, login info"
                 if chunk_id in all_chunks:
                     continue
                 
-                keyword_score = fuzz.partial_ratio(query.lower(), chunk.snippet.lower()) / 100.0
+                # Semantic similarity score
                 similarity_score = 1 - chunk.distance if chunk.distance else 0.0
-                combined = (similarity_score * 0.7) + (keyword_score * 0.3)
+                
+                # Improved keyword scoring - check if ANY query keywords appear
+                keyword_matches = sum(1 for kw in query_keywords if kw in chunk.snippet.lower())
+                keyword_score = min(keyword_matches / max(len(query_keywords), 1), 1.0)
+                
+                # Metadata boost - check subject, sender, date
+                metadata_boost = 0.0
+                
+                # Boost if subject contains query keywords
+                subject_lower = chunk.subject.lower()
+                subject_matches = sum(1 for kw in query_keywords if kw in subject_lower)
+                if subject_matches > 0:
+                    metadata_boost += 0.2 * (subject_matches / len(query_keywords))
+                
+                # Boost if sender/recipient matches person names (capitalized words)
+                potential_names = [w for w in query.split() if w and w[0].isupper() and len(w) > 2]
+                from_lower = chunk.from_address.lower()
+                for name in potential_names:
+                    if name.lower() in from_lower:
+                        metadata_boost += 0.3
+                        break
+                
+                # Boost if date matches query year
+                for keyword in query_keywords:
+                    if keyword.isdigit() and len(keyword) == 4:  # Year
+                        if keyword in chunk.date:
+                            metadata_boost += 0.3
+                            break
+                
+                # Cap metadata boost at 0.5
+                metadata_boost = min(metadata_boost, 0.5)
+                
+                # Dynamic scoring weights based on query type
+                if is_specific_query:
+                    # Specific queries: favor exact matches and metadata
+                    combined = (similarity_score * 0.3) + (keyword_score * 0.4) + (metadata_boost * 0.3)
+                else:
+                    # Conceptual queries: favor semantic similarity
+                    combined = (similarity_score * 0.7) + (keyword_score * 0.2) + (metadata_boost * 0.1)
                 
                 all_chunks[chunk_id] = RetrievedChunk(chunk=chunk, score=combined)
         
