@@ -101,3 +101,47 @@ class EmailIndex:
                 )
             )
         return hits
+
+    def get_chunks_by_ids(self, chunk_ids: List[str]) -> dict[str, IndexedChunk]:
+        """
+        Retrieve chunks by their IDs from ChromaDB.
+        Returns dict mapping chunk_id to IndexedChunk.
+        Uses batching to prevent memory exhaustion.
+        """
+        if not chunk_ids:
+            return {}
+        
+        chunks_by_id = {}
+        batch_size = 100  # Retrieve 100 chunks at a time to prevent OOM
+        
+        try:
+            for i in range(0, len(chunk_ids), batch_size):
+                batch = chunk_ids[i:i + batch_size]
+                
+                result = self._collection.get(
+                    ids=batch,
+                    include=["documents", "metadatas"]
+                )
+                
+                for idx, chunk_id in enumerate(result["ids"]):
+                    metadata = result["metadatas"][idx]
+                    doc = result["documents"][idx]
+                    
+                    chunks_by_id[chunk_id] = IndexedChunk(
+                        chunk_id=chunk_id,
+                        message_id=metadata.get("message_id", "unknown"),
+                        thread_id=metadata.get("thread_id", metadata.get("message_id", "unknown")),
+                        subject=metadata.get("subject", "(no subject)"),
+                        from_address=metadata.get("from_address", "unknown"),
+                        to=metadata.get("to", []),
+                        date=metadata.get("date", ""),
+                        chunk_index=metadata.get("chunk_index", 0),
+                        snippet=doc,
+                        raw_path=metadata.get("raw_path", ""),
+                        distance=0.0,  # Not applicable when fetching by ID
+                    )
+            
+            return chunks_by_id
+        except Exception as e:
+            print(f"⚠️  Failed to get chunks by IDs: {e}")
+            return {}

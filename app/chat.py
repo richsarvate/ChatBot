@@ -78,7 +78,14 @@ class ChatService:
 
     def _build_user_prompt(self, question: str, context_blocks: List[str]) -> str:
         context_text = "\n\n".join(context_blocks)
-        instructions = "Use only the context provided below. If the answer is not contained, reply that you cannot find it."
+        instructions = """Answer the question using the email context below. Make reasonable inferences from the available information.
+
+For questions like "who is X?":
+- If emails mention X in a clear role/context, describe what you can infer
+- Don't hedge with "I cannot find specific information" if you have relevant details
+- Be direct and confident when the context clearly indicates who someone is
+
+Only say you cannot find information if the context is truly unrelated or empty."""
         return f"{instructions}\n\nContext:\n{context_text}\n\nQuestion: {question}\nAnswer:"
 
     def _build_citations(self, chunks: List[RetrievedChunk]) -> List[dict]:

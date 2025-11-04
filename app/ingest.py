@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import mailbox
+import pickle
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -11,6 +12,7 @@ from typing import List, Optional
 import mailparser
 import yaml
 from email import message_from_string
+from rank_bm25 import BM25Okapi
 from tqdm import tqdm
 
 from .chunking import make_chunks
@@ -455,6 +457,11 @@ def ingest_emails(*, rebuild: bool = False, resume: bool = False, limit: int | N
     batch_ids: List[str] = []
     batch_size_limit = 100  # Process 100 chunks at a time
     
+    # BM25 corpus: collect all chunks and metadata for BM25 indexing
+    bm25_corpus: List[str] = []  # All chunk texts
+    bm25_chunk_ids: List[str] = []  # Corresponding chunk IDs
+    bm25_metadatas: List[dict] = []  # Corresponding metadata
+    
     emails_processed = 0
     current_file_path = str(all_files[0]) if all_files else ""
     
@@ -472,21 +479,27 @@ def ingest_emails(*, rebuild: bool = False, resume: bool = False, limit: int | N
             
             for idx, chunk in enumerate(chunks):
                 chunk_id = f"{email.message_id}-{idx:04d}"
+                metadata = {
+                    "message_id": email.message_id,
+                    "thread_id": email.thread_id,
+                    "subject": email.subject,
+                    "from_address": email.from_address,
+                    "to": ", ".join(email.to),
+                    "date": email.date,
+                    "chunk_index": idx,
+                    "raw_path": str(email.raw_path),
+                    "token_estimate": len(chunk.split()),
+                }
+                
+                # Add to ChromaDB batch
                 batch_documents.append(chunk)
-                batch_metadatas.append(
-                    {
-                        "message_id": email.message_id,
-                        "thread_id": email.thread_id,
-                        "subject": email.subject,
-                        "from_address": email.from_address,
-                        "to": ", ".join(email.to),
-                        "date": email.date,
-                        "chunk_index": idx,
-                        "raw_path": str(email.raw_path),
-                        "token_estimate": len(chunk.split()),
-                    }
-                )
+                batch_metadatas.append(metadata)
                 batch_ids.append(chunk_id)
+                
+                # Add to BM25 corpus
+                bm25_corpus.append(chunk)
+                bm25_chunk_ids.append(chunk_id)
+                bm25_metadatas.append(metadata)
             
             total_chunks += len(chunks)
             
@@ -560,6 +573,28 @@ def ingest_emails(*, rebuild: bool = False, resume: bool = False, limit: int | N
     print(f"  Emails indexed:  {len(parser_summary)}")
     print(f"  Chunks created:  {total_chunks}")
     print(f"  Emails filtered: {filtered_count}")
+    
+    # Build and save BM25 index
+    print(f"\n📚 Building BM25 index for keyword search...")
+    if bm25_corpus:
+        # Tokenize corpus (simple whitespace + lowercase tokenization)
+        tokenized_corpus = [doc.lower().split() for doc in bm25_corpus]
+        bm25_index = BM25Okapi(tokenized_corpus)
+        
+        # Save BM25 index and metadata
+        bm25_data = {
+            "index": bm25_index,
+            "chunk_ids": bm25_chunk_ids,
+            "metadatas": bm25_metadatas,
+            "corpus": bm25_corpus,  # Keep original texts for retrieval
+        }
+        
+        bm25_path = settings.index_dir / "bm25_index.pkl"
+        with open(bm25_path, "wb") as f:
+            pickle.dump(bm25_data, f)
+        print(f"  ✓ BM25 index saved: {len(bm25_corpus)} chunks")
+    else:
+        print(f"  ⚠ No chunks to index for BM25")
     
     # Delete checkpoint on successful completion
     if checkpoint_path.exists():

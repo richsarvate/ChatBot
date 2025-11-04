@@ -17,11 +17,11 @@ class Settings:
     regression_cases_path: Path
     openai_api_key: str
     embedding_model: str = "text-embedding-3-large"
-    chat_model: str = "gpt-4.1"
+    chat_model: str = "gpt-4o"
     chunk_size_tokens: int = 500
     chunk_overlap_tokens: int = 50
     chroma_collection: str = "emails"
-    top_k: int = 30  # Retrieve more chunks for diversity before deduplication
+    top_k: int = 100  # Retrieve many chunks to ensure keyword matches are included
     top_k_final: int = 10  # Final number after thread deduplication (increased from 6)
 
 
