@@ -23,6 +23,28 @@ class Settings:
     chroma_collection: str = "emails"
     top_k: int = 100  # Retrieve many chunks to ensure keyword matches are included
     top_k_final: int = 10  # Final number after thread deduplication (increased from 6)
+    
+    # Spam filtering
+    spam_penalty: float = 0.3  # Score penalty for low-value automated emails
+    spam_subject_patterns: tuple = (
+        'order confirmed',
+        'order #',
+        'automatic reply:',
+        'out of office',
+        'nightly wrap',
+        'your event lineup',
+        'top suggestions',
+        'recommendations for you',
+        'alert:',
+        'newsletter',
+    )
+    spam_sender_patterns: tuple = (
+        'no-reply',
+        'noreply',
+        'donotreply',
+        'notifications@',
+        'alerts@',
+    )
 
 
 def get_settings() -> Settings:

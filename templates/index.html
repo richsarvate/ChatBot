@@ -100,10 +100,39 @@
       color: #666;
     }
     
+    .citations-toggle {
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #5436da;
+    }
+    
+    .citations-toggle:hover {
+      color: #4228c0;
+    }
+    
+    .citations-toggle::before {
+      content: '▶';
+      font-size: 0.7rem;
+      transition: transform 0.2s;
+    }
+    
+    .citations-toggle.open::before {
+      transform: rotate(90deg);
+    }
+    
     .citations ul {
       list-style: none;
       padding: 0;
       margin-top: 0.5rem;
+      display: none;
+    }
+    
+    .citations ul.open {
+      display: block;
     }
     
     .citations li {
@@ -228,13 +257,24 @@
         if (citations && citations.length) {
           const citDiv = document.createElement('div');
           citDiv.className = 'citations';
-          citDiv.innerHTML = '<strong>Sources:</strong>';
+          
+          const toggle = document.createElement('div');
+          toggle.className = 'citations-toggle';
+          toggle.textContent = `Sources (${citations.length})`;
+          
           const ul = document.createElement('ul');
           citations.forEach(c => {
             const li = document.createElement('li');
             li.textContent = c.label + ' • ' + c.date;
             ul.appendChild(li);
           });
+          
+          toggle.addEventListener('click', () => {
+            toggle.classList.toggle('open');
+            ul.classList.toggle('open');
+          });
+          
+          citDiv.appendChild(toggle);
           citDiv.appendChild(ul);
           contentDiv.appendChild(citDiv);
         }

@@ -264,7 +264,11 @@ Example: "password, PW, pw:, credentials, login info"
                         metadata_boost += 0.15
                         break
             
-            # Combined score: RRF base + metadata boost
+            # Penalize spammy/automated emails
+            if self._is_spammy_email(chunk):
+                metadata_boost -= self._settings.spam_penalty
+            
+            # Combined score: RRF base + metadata boost/penalties
             # RRF already balanced semantic and keyword, so just add metadata
             combined = base_score + metadata_boost
             
@@ -275,6 +279,26 @@ Example: "password, PW, pw:, credentials, login info"
         
         # Deduplicate by thread_id to improve diversity
         return self._deduplicate_by_thread(reranked, max_per_thread=1)
+    
+    def _is_spammy_email(self, chunk: IndexedChunk) -> bool:
+        """
+        Detect automated/promotional emails with low information value.
+        Patterns are configurable in settings.
+        """
+        subject = chunk.subject.lower()
+        from_addr = chunk.from_address.lower()
+        
+        # Check subject patterns
+        for pattern in self._settings.spam_subject_patterns:
+            if pattern in subject:
+                return True
+        
+        # Check sender patterns
+        for pattern in self._settings.spam_sender_patterns:
+            if pattern in from_addr:
+                return True
+        
+        return False
     
     def _deduplicate_by_thread(
         self, 
